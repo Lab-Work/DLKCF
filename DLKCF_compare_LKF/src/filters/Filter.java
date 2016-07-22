@@ -15,6 +15,7 @@ public abstract class Filter {
 
 	public DoubleMatrix var;
 	public DoubleMatrix mean;
+	public DoubleMatrix csterm;
 	public DoubleMatrix f_var;
 	public DoubleMatrix f_mean;	
 	public double gamma;
@@ -40,6 +41,8 @@ public abstract class Filter {
 	DoubleMatrix modelVar;	
 	DoubleMatrix measureVar;	
 	DoubleMatrix priorVar;
+	public DoubleMatrix scaling;
+	double threshold;
 	public DoubleMatrix measure; //public only for test	
 	int numUp;	
 	Section section;
@@ -51,6 +54,7 @@ public abstract class Filter {
 	abstract public void nextStepNoData();
 	
 	protected void initial(Estimation _estimation) {
+		
 		estimation = _estimation;
 		roadModel = estimation.roadModel;
 		section =estimation.roadModel.section;
@@ -62,6 +66,11 @@ public abstract class Filter {
 		priorVar=var.dup();		
 		numUp = 0;
 		Lambda=DoubleMatrix.zeros(size, size);
+		csterm=DoubleMatrix.zeros(2, 1);
+		scaling=DoubleMatrix.zeros(2, 1);
+		scaling.put(0,0,1);
+		scaling.put(1,0,1);
+		threshold=0.01;
 	}
 	
 	public static Filter createFilter(Estimation _estimation) {
@@ -140,9 +149,26 @@ public abstract class Filter {
 //				C2=Xi2.mmul(var.mmul(I2).mul(gammaStar));
 				C1=var.mmul(I1).mul(gammaStar*0.99);
 				C2=var.mmul(I2).mul(gammaStar*0.99);
+				
+				csterm.put(0,0,(C1.mmul(_filter1.mean.getRange(_filter1.size-overlap,_filter1.size,0,1).sub(mean.getRange(0,overlap,0,1)))).norm2());
+				csterm.put(1,0,(C2.mmul(_filter2.mean.getRange(0,overlap,0,1).sub(mean.getRange(size-overlap,size,0,1)))).norm2());
+				for (int i=0; i<2;i++){
+					if (csterm.get(i)>threshold){
+						scaling.put(i,0,((double)threshold)/((double)csterm.get(i)));
+					}
+					else{
+						scaling.put(i,0,1);
+					}
+				}
+
+				
 				DoubleMatrix mean1=new DoubleMatrix(size,1);
-				mean1=mean.add(C1.mmul(_filter1.mean.getRange(_filter1.size-overlap,_filter1.size,0,1).sub(mean.getRange(0,overlap,0,1)))).add(C2.mmul(_filter2.mean.getRange(0,overlap,0,1).sub(mean.getRange(size-overlap,size,0,1))));
+				mean1=mean.add((C1.mmul(_filter1.mean.getRange(_filter1.size-overlap,_filter1.size,0,1).sub(mean.getRange(0,overlap,0,1)))).mmul(scaling.get(0))).add((C2.mmul(_filter2.mean.getRange(0,overlap,0,1).sub(mean.getRange(size-overlap,size,0,1)))).mmul(scaling.get(1)));
+
+				
 				return mean1;
+				
+		
 		    }
 
 			}
@@ -175,9 +201,21 @@ public abstract class Filter {
 
 //				C1=Xi1.mmul(var.mmul(I1).mul(gammaStar));
 				C1=var.mmul(I1).mul(gammaStar*0.99);
+				
+				csterm.put(0,0,(C1.mmul(_filter1.mean.getRange(_filter1.size-overlap,_filter1.size,0,1).sub(mean.getRange(0,overlap,0,1)))).norm2());
+				
+				for (int i=0; i<1;i++){
+					if (csterm.get(i)>threshold){
+						scaling.put(i,0,((double)threshold)/((double)csterm.get(i)));
+					}
+					else{
+						scaling.put(i,0,1);
+					}
+				}
 			
 				DoubleMatrix mean1=new DoubleMatrix(size,1);
-				mean1=mean.add(C1.mmul(_filter1.mean.getRange(_filter1.size-overlap,_filter1.size,0,1).sub(mean.getRange(0,overlap,0,1))));
+				mean1=mean.add((C1.mmul(_filter1.mean.getRange(_filter1.size-overlap,_filter1.size,0,1).sub(mean.getRange(0,overlap,0,1)))).mmul(csterm.get(0)));
+
 				return mean1;
 		    }
 
@@ -209,9 +247,21 @@ public abstract class Filter {
 
 				
 //				C2=Xi2.mmul(var.mmul(I2).mul(gammaStar));
-				C2=var.mmul(I2).mul(gammaStar*0.99);	
+				C2=var.mmul(I2).mul(gammaStar*0.99);
+				
+				csterm.put(1,0,(C2.mmul(_filter2.mean.getRange(_filter2.size-overlap,_filter2.size,0,1).sub(mean.getRange(0,overlap,0,1)))).norm2());			
+				for (int i=1; i<2;i++){
+					if (csterm.get(i)>threshold){
+						scaling.put(i,0,((double)threshold)/((double)csterm.get(i)));
+					}
+					else{
+						scaling.put(i,0,1);
+					}
+				}
+				
 				DoubleMatrix mean1=new DoubleMatrix(size,1);
-				mean1=mean.add(C2.mmul(_filter2.mean.getRange(_filter2.size-overlap,_filter2.size,0,1).sub(mean.getRange(0,overlap,0,1))));
+				mean1=mean.add((C2.mmul(_filter2.mean.getRange(_filter2.size-overlap,_filter2.size,0,1).sub(mean.getRange(0,overlap,0,1)))).mmul(csterm.get(1)));
+
 				return mean1;
 		    }
 

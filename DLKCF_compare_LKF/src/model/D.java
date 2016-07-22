@@ -21,32 +21,36 @@ public class D extends RoadModel{
 		else{
 			if (section.index==0){
 				measureVar=trueSolution.measureVarDensity.dup();
-				for (int i=0;i<3;i++){
-					measureVar.put(i,i,trust);
-				}
+				
+				measureVar.put(0,0,trust);
+				measureVar.put(1,1,trust);
+				measureVar.put(3,3,trust);
+				
 			}
 			else if (section.index==trueSolution.numSections-1){
 				if ((section.index)%2==0){
 					measureVar=trueSolution.measureVarDensity.dup();
-					for (int j=1;j<4;j++){
-						measureVar.put(j,j,trust);
-					}
+					
+					measureVar.put(0,0,trust);
+					measureVar.put(2,2,trust);
+					measureVar.put(3,3,trust);
+					
 				}
 				else{
 					measureVar=trueSolution.measureVarDensity.dup();
-					measureVar.put(0,0,trust);	
+					measureVar.put(1,1,trust);	
 				}
 			}
 			else{
 				if ((section.index)%2==0){
 					measureVar=trueSolution.measureVarDensity.dup();
-					measureVar.put(1,1,trust);
-					measureVar.put(2,2,trust);
+					measureVar.put(0,0,trust);
+					measureVar.put(3,3,trust);
 				}
 				else{
 					measureVar=trueSolution.measureVarDensity.dup();
-					measureVar.put(0,0,trust);
-					measureVar.put(3,3,trust);
+					measureVar.put(1,1,trust);
+					measureVar.put(2,2,trust);
 				}
 			}
 		}

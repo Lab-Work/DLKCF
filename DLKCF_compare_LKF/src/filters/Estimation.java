@@ -1,11 +1,15 @@
 package filters;
 
 import section.Section;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+
 import model.RoadModel;
+
 import org.jblas.DoubleMatrix;
+
 import Jama.EigenvalueDecomposition;
 import Jama.Matrix;
 import doubleMatrix.Concat;
@@ -65,6 +69,7 @@ public class Estimation {
 			BufferedWriter[] LyapSection = new BufferedWriter[numSections];
 			
 			BufferedWriter writerTrue;
+			BufferedWriter writerConsensusTerm;
 			
 			BufferedWriter writerAvr;
 			BufferedWriter writerAvr1;
@@ -114,6 +119,7 @@ public class Estimation {
 				}
 				
 				writerTrue = new BufferedWriter(new FileWriter(new File("results/"+folder+"/"+"trueState.csv")));
+				writerConsensusTerm = new BufferedWriter(new FileWriter(new File("results/"+folder+"/"+"consensusTerm.csv")));
 				writerAvr = new BufferedWriter(new FileWriter(new File("results/"+folder+"/"+"writerAvr.csv")));
 				writerAvr1 = new BufferedWriter(new FileWriter(new File("results/"+folder+"/"+"writerAvr1.csv")));
 				writerAvr2 = new BufferedWriter(new FileWriter(new File("results/"+folder+"/"+"writerAvr2.csv")));				
@@ -218,6 +224,8 @@ public class Estimation {
 				
 				double[]disagAvg=new double [3];
 				double[]errorAvg=new double [3];
+				double[]errAvgEntire=new double [3];
+				
 				
 
 				for (int k=0; k<limite; k++) {
@@ -234,33 +242,41 @@ public class Estimation {
 					double ErrorAvg1=0;
 					double ErrorAvg2=0;
 					double LyapAvg=0;
+					
+					double[]errorAvgk=new double [3];
 					for (int i=0; i<numSections; i++) {
 						mean [i] = estimations[i].getDensityMean();
 						if (numSections==1){
 							for (int j=0; j<mean[i].length ; j++) {
-								writerAvr.write(mean[i].get(j)+",");							
+								writerAvr.write(mean[i].get(j)+",");
+								errorAvgk[0]=(mean[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))*(mean[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))+errorAvgk[0];
 							}
 						}
 						else{
 							if (i==0){
 								for (int j=0; j<mean[i].length-overlap ; j++) {
-									writerAvr.write(mean[i].get(j)+",");							
+									writerAvr.write(mean[i].get(j)+",");
+									errorAvgk[0]=(mean[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))*(mean[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))+errorAvgk[0];
 								}
 							}
 							else if (i>0 && i<numSections-1){
 								for (int j=0; j<overlap ; j++) {
-									writerAvr.write((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2+",");	
+									writerAvr.write((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2+",");
+									errorAvgk[0]=((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+j,0))*((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+j,0))+errorAvgk[0];
 								}
 								for (int j=0; j<mean[i].length-2*overlap ; j++) {
-									writerAvr.write(mean[i].get(overlap+j)+",");								
+									writerAvr.write(mean[i].get(overlap+j)+",");
+									errorAvgk[0]=(mean[i].get(overlap+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+overlap+j,0))*(mean[i].get(overlap+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+overlap+j,0))+errorAvgk[0];
 								}
 							}
 							else if (i==numSections-1){
 								for (int j=0; j<overlap ; j++) {
-									writerAvr.write((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2+",");	
+									writerAvr.write((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2+",");
+									errorAvgk[0]=((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+j,0))*((mean[i].get(j)+mean[i-1].get(cellsec-overlap+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+j,0))+errorAvgk[0];
 								}
 								for (int j=0; j<mean[i].length-overlap ; j++) {
-									writerAvr.write(mean[i].get(overlap+j)+",");								
+									writerAvr.write(mean[i].get(overlap+j)+",");	
+									errorAvgk[0]=(mean[i].get(overlap+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+overlap+j,0))*(mean[i].get(overlap+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean[i].length-overlap)+overlap+j,0))+errorAvgk[0];
 								}
 							}
 						}
@@ -287,7 +303,8 @@ public class Estimation {
 						
 						
 						
-					}					
+					}	
+					errAvgEntire[0]=errorAvgk[0]/((double)(limite*trueSolutionCTM.cells))+errAvgEntire[0];
 					Error.write(ErrorAvg+",");
 					errorAvg[0]=errorAvg[0]+ErrorAvg/((double)(limite));
 					Lyap.write(LyapAvg+"\n");
@@ -296,29 +313,35 @@ public class Estimation {
 						mean_1 [i] = estimations1[i].getDensityMean();
 						if (numSections1==1){
 							for (int j=0; j<mean_1[i].length ; j++) {
-								writerAvr1.write(mean_1[i].get(j)+",");							
+								writerAvr1.write(mean_1[i].get(j)+",");	
+								errorAvgk[1]=(mean_1[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))*(mean_1[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))+errorAvgk[1];
 							}
 						}
 						else{
 							if (i==0){
 								for (int j=0; j<mean_1[i].length-overlap1 ; j++) {
-									writerAvr1.write(mean_1[i].get(j)+",");							
+									writerAvr1.write(mean_1[i].get(j)+",");		
+									errorAvgk[1]=(mean_1[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))*(mean_1[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))+errorAvgk[1];
 								}
 							}
 							else if (i>0 && i<numSections1-1){
 								for (int j=0; j<overlap1 ; j++) {
 									writerAvr1.write((mean_1[i].get(j)+mean_1[i-1].get(cellsec1-overlap1+j))/2+",");	
+									errorAvgk[1]=((mean_1[i].get(j)+mean_1[i-1].get(cellsec1-overlap1+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+j,0))*((mean_1[i].get(j)+mean_1[i-1].get(cellsec1-overlap1+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+j,0))+errorAvgk[1];
 								}
 								for (int j=0; j<mean_1[i].length-2*overlap1 ; j++) {
-									writerAvr1.write(mean_1[i].get(overlap1+j)+",");								
+									writerAvr1.write(mean_1[i].get(overlap1+j)+",");	
+									errorAvgk[1]=(mean_1[i].get(overlap1+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+overlap1+j,0))*(mean_1[i].get(overlap1+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+overlap1+j,0))+errorAvgk[1];
 								}
 							}
 							else if (i==numSections1-1){
 								for (int j=0; j<overlap1 ; j++) {
 									writerAvr1.write((mean_1[i].get(j)+mean_1[i-1].get(cellsec1-overlap1+j))/2+",");	
+									errorAvgk[1]=((mean_1[i].get(j)+mean_1[i-1].get(cellsec1-overlap1+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+j,0))*((mean_1[i].get(j)+mean_1[i-1].get(cellsec1-overlap1+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+j,0))+errorAvgk[1];
 								}
 								for (int j=0; j<mean_1[i].length-overlap1 ; j++) {
-									writerAvr1.write(mean_1[i].get(overlap1+j)+",");								
+									writerAvr1.write(mean_1[i].get(overlap1+j)+",");	
+									errorAvgk[1]=(mean_1[i].get(overlap1+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+overlap1+j,0))*(mean_1[i].get(overlap1+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_1[i].length-overlap1)+overlap1+j,0))+errorAvgk[1];
 								}
 							}
 						}
@@ -332,34 +355,43 @@ public class Estimation {
 					}
 					Error1.write(ErrorAvg1+",");
 					errorAvg[1]=errorAvg[1]+ErrorAvg1/((double)(limite));
+					errAvgEntire[1]=errorAvgk[1]/((double)(limite*trueSolutionCTM.cells))+errAvgEntire[1];
 					
 					for (int i=0; i<numSections2; i++) {					
 						mean_2 [i] = estimations2[i].getDensityMean();
 						if (numSections2==1){
 							for (int j=0; j<mean_2[i].length ; j++) {
-								writerAvr2.write(mean_2[i].get(j)+",");							
+								writerAvr2.write(mean_2[i].get(j)+",");		
+								errorAvgk[2]=(mean_2[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))*(mean_2[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))+errorAvgk[2];
 							}
 						}
 						else{
 							if (i==0){
 								for (int j=0; j<mean_2[i].length-overlap2 ; j++) {
-									writerAvr2.write(mean_2[i].get(j)+",");							
+									writerAvr2.write(mean_2[i].get(j)+",");	
+									errorAvgk[2]=(mean_2[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))*(mean_2[i].get(j)-trueSolutionCTM.trueStatesCTM.get(j,0))+errorAvgk[2];
 								}
 							}
 							else if (i>0 && i<numSections2-1){
 								for (int j=0; j<overlap2 ; j++) {
-									writerAvr2.write((mean_2[i].get(j)+mean_2[i-1].get(cellsec2-overlap2+j))/2+",");	
+									writerAvr2.write((mean_2[i].get(j)+mean_2[i-1].get(cellsec2-overlap2+j))/2+",");
+									errorAvgk[2]=((mean_2[i].get(j)+mean_2[i-1].get(cellsec2-overlap2+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+j,0))*((mean_2[i].get(j)+mean_2[i-1].get(cellsec2-overlap2+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+j,0))+errorAvgk[2];
 								}
 								for (int j=0; j<mean_2[i].length-2*overlap2 ; j++) {
-									writerAvr2.write(mean_2[i].get(overlap2+j)+",");								
+									writerAvr2.write(mean_2[i].get(overlap2+j)+",");	
+									errorAvgk[2]=(mean_2[i].get(overlap2+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+overlap2+j,0))*(mean_2[i].get(overlap2+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+overlap2+j,0))+errorAvgk[2];
 								}
 							}
 							else if (i==numSections2-1){
 								for (int j=0; j<overlap2 ; j++) {
 									writerAvr2.write((mean_2[i].get(j)+mean_2[i-1].get(cellsec2-overlap2+j))/2+",");	
+									errorAvgk[2]=((mean_2[i].get(j)+mean_2[i-1].get(cellsec2-overlap2+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+j,0))*((mean_2[i].get(j)+mean_2[i-1].get(cellsec2-overlap2+j))/2-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+j,0))+errorAvgk[2];
 								}
 								for (int j=0; j<mean_2[i].length-overlap2 ; j++) {
-									writerAvr2.write(mean_2[i].get(overlap2+j)+",");								
+									writerAvr2.write(mean_2[i].get(overlap2+j)+",");	
+									errorAvgk[2]=(mean_2[i].get(overlap2+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+overlap2+j,0))*(mean_2[i].get(overlap2+j)-trueSolutionCTM.trueStatesCTM.get(i*(mean_2[i].length-overlap2)+overlap2+j,0))+errorAvgk[2];
+								
+									
 								}
 							}
 						}
@@ -373,6 +405,7 @@ public class Estimation {
 					}
 					Error2.write(ErrorAvg2+",");
 					errorAvg[2]=errorAvg[2]+ErrorAvg2/((double)(limite));
+					errAvgEntire[2]=errorAvgk[2]/((double)(limite*trueSolutionCTM.cells))+errAvgEntire[2];
 				
 					writerAvr.write("\n");
 					writerAvr1.write("\n");
@@ -745,12 +778,19 @@ public class Estimation {
 						
 						DoubleMatrix[] mean1=new DoubleMatrix[numSections];
 						mean1[0]=estimations[0].filter.Consensus2(estimations[1].filter);
+						writerConsensusTerm.write(estimations[0].filter.scaling.get(0)+",");
+						writerConsensusTerm.write(estimations[0].filter.scaling.get(1)+",");
 						
 						for (int i=1; i<numSections-1; i++) {
 							mean1[i]=estimations[i].filter.Consensus(estimations[i-1].filter,estimations[i+1].filter);
+							writerConsensusTerm.write(estimations[i].filter.scaling.get(0)+",");
+							writerConsensusTerm.write(estimations[i].filter.scaling.get(1)+",");
 						}
 
-	                    mean1[numSections-1]=estimations[numSections-1].filter.Consensus1(estimations[numSections-2].filter);				
+	                    mean1[numSections-1]=estimations[numSections-1].filter.Consensus1(estimations[numSections-2].filter);	
+	                    writerConsensusTerm.write(estimations[numSections-1].filter.scaling.get(0)+",");
+	                    writerConsensusTerm.write(estimations[numSections-1].filter.scaling.get(1)+",");
+	                    writerConsensusTerm.write("\n");
 						for (int i=0; i<numSections; i++) {
 							estimations[i].filter.mean=mean1[i];
 						}
@@ -772,6 +812,7 @@ public class Estimation {
 					Mode2[i].flush(); Mode2[i].close();
 				}
 				writerAvr.flush(); writerAvr.close();
+				writerConsensusTerm.flush(); writerConsensusTerm.close();
 				writerAvr1.flush(); writerAvr1.close();
 				writerAvr2.flush(); writerAvr2.close();
 				Error.flush(); Error.close();
@@ -782,6 +823,14 @@ public class Estimation {
 				writerDisagreement.flush(); writerDisagreement.close();
 				writerDisagreement1.flush(); writerDisagreement1.close();
 				writerDisagreement2.flush(); writerDisagreement2.close();
+				
+				System.out.print("Disag_avg_DLKCF="+disagAvg[0]+"\n");
+				System.out.print("Disag_avg_DLKF="+disagAvg[1]+"\n");
+				System.out.print("Disag_avg_LKF="+disagAvg[2]+"\n");
+				System.out.print("Err_avg_DLKCF="+errorAvg[0]+"\n");
+				System.out.print("Err_avg_DLKF="+errorAvg[1]+"\n");
+				System.out.print("Err_avg_LKF="+errorAvg[2]+"\n");
+
 				
 				
 				System.out.println(" End");						
